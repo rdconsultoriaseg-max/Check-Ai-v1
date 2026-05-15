@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>CheckAi - Operação</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #eef2f7; padding: 20px; }
+        .header { background: #1a73e8; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        .item-check { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        input[type="checkbox"] { width: 25px; height: 25px; cursor: pointer; }
+        button { background: #1a73e8; color: white; border: none; padding: 18px; width: 100%; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 20px; }
+        .logout { background: none; color: #666; font-size: 14px; text-decoration: underline; border: none; margin-top: 20px; cursor: pointer; width: auto; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h2 id="boasvindas">Olá!</h2>
+    <p>Complete a verificação abaixo:</p>
+</div>
+
+<div id="lista-itens">A carregar itens de verificação...</div>
+
+<button id="btnFinalizar">FINALIZAR E ENVIAR</button>
+
+<center><button class="logout" onclick="window.location.href='index.html'">Sair / Trocar utilizador</button></center>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBkVb8zenJDjsPSFRCiEmcsOHYhKdquT7M",
+        authDomain: "check-ai-9303f.firebaseapp.com",
+        projectId: "check-ai-9303f",
+        storageBucket: "check-ai-9303f.firebasestorage.app",
+        messagingSenderId: "732538707024",
+        appId: "1:732538707024:web:d467b1246c7dcb16030555"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Mostra o nome de quem logou
+    document.getElementById('boasvindas').innerText = "Olá, " + (localStorage.getItem("usuarioNome") || "Colaborador");
+
+    const listaDiv = document.getElementById('lista-itens');
+
+    // Vai ao banco buscar os itens que você criou no admin.html
+    async function carregarItens() {
+        try {
+            const querySnapshot = await getDocs(collection(db, "itens_verificacao"));
+            if(querySnapshot.empty) {
+                listaDiv.innerHTML = "<p>Nenhum item de verificação cadastrado pelo Admin.</p>";
+                return;
+            }
+            listaDiv.innerHTML = "";
+            querySnapshot.forEach((doc) => {
+                const item = doc.data();
+                listaDiv.innerHTML += `
+                    <div class="item-check">
+                        <span>${item.descricao}</span>
+                        <input type="checkbox" class="checks" data-nome="${item.descricao}">
+                    </div>
+                `;
+            });
+        } catch (e) { listaDiv.innerText = "Erro ao carregar lista."; }
+    }
+    carregarItens();
+
+    // Salva o relatório final
+    document.getElementById('btnFinalizar').onclick = async () => {
+        const marcados = [];
+        document.querySelectorAll('.checks:checked').forEach(c => marcados.push(c.getAttribute('data-nome')));
+
+        if(marcados.length === 0) {
+            if(!confirm("Nenhum item marcado. Deseja enviar assim mesmo?")) return;
+        }
+
+        try {
+            await addDoc(collection(db, "relatorios"), {
+                usuario: localStorage.getItem("usuarioNome"),
+                itens_concluidos: marcados,
+                data: new Date().toLocaleString()
+            });
+            alert("Check-list enviado com sucesso!");
+            window.location.href = "index.html";
+        } catch (e) { alert("Erro ao enviar: " + e.message); }
+    };
+</script>
+</body>
+</html>
